@@ -1,0 +1,25 @@
+step1_moving_points:
+  input_dir:       "local_file/raw_file"
+  output_dir:      "local_file/step1_file"
+  file_name:       "ALL"                      # “ALL” 或者指定单个待处理文件
+  faststart:       true                       # MP4 faststart 标志
+  reencode:        true                       # 是否使用 H.264 重编码输出
+  max_points:      20                         # 每帧最多标注运动目标数
+  min_area:        20                         # 忽略面积小于此值的轮廓（噪声过滤）
+  max_area_ratio:  0.01                       # 忽略面积占帧面积比例超过此阈值（过滤云层等大块）
+  speed_thresh:    20                         # 灰度差分阈值，仅保留运动速度大于此值的像素
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250714_175500.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      68                         # 0 = 从头
+  end_frame:        1500                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            690                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            290                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
