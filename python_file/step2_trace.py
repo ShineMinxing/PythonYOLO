@@ -7,11 +7,10 @@ import math
 from tqdm import tqdm
 
 """
-step2_trace.py • v3.2 (logging & progress)
+step2_trace.py • v3.4 (fix CSV track assignment)
 -------------------------------------------------------------
-新增：
-- 处理文件、裁剪、渲染的详细日志打印
-- Tracking 与渲染都使用 tqdm 进度条
+- 修正：IMU CSV 使用完整插值轨迹 traj 而非 traj_s
+- 其他功能及日志保持不变
 """
 
 # ---- FFmpeg Helpers ----
@@ -78,7 +77,6 @@ def _pick_initial(df, idx, ref, cols, r0, growth):
                 print(f"[LOG] Initial found at (x={x}, y={y}, area={a}) with radius {radius}")
                 return (x, y, a)
             radius += growth
-    # fallback: max area
     areas = [(df.at[idx, ac] if not pd.isna(df.at[idx, ac]) else 0) for _,_,ac in cols]
     k = int(pd.Series(areas).idxmax())
     xc, yc, ac = cols[k]
@@ -138,7 +136,7 @@ def _process(name, dirs, cfg):
     pts = os.path.join(dirs['points'], f'Trace_{ts}.csv')
 
     df_pts = pd.read_csv(pts)
-    df_imu = pd.read_csv(imu)
+    df_imu_full = pd.read_csv(imu)
 
     cap0 = cv2.VideoCapture(vid)
     src_fps = cap0.get(cv2.CAP_PROP_FPS)
@@ -160,26 +158,28 @@ def _process(name, dirs, cfg):
     ref = (cfg.get('ref_x', 0), cfg.get('ref_y', 0))
     traj = _track(df_pts, s, e, cfg['init_radius'], cfg['radius_growth'], ref)
 
-    idxs = list(range(0, len(traj), stride)) if out_fps else list(range(len(traj)))
-    traj_s = traj.iloc[idxs].reset_index(drop=True)
-
+    # CSV 裁剪 + 完整插值轨迹写入
+    df_imu_cut = df_imu_full.iloc[s:e+1].reset_index(drop=True)
+    for col in ['track_x', 'track_y', 'track_area']:
+        if col not in df_imu_cut.columns:
+            df_imu_cut[col] = pd.NA
+    df_imu_cut[['track_x','track_y','track_area']] = traj.values
     out_dir = dirs['out']; os.makedirs(out_dir, exist_ok=True)
-    df_imu.loc[s + pd.Series(idxs), ['track_x','track_y','track_area']] = traj_s.values
     csv_out = os.path.join(out_dir, f'Msg_{ts}_Track.csv')
-    df_imu.to_csv(csv_out, index=False)
+    df_imu_cut.to_csv(csv_out, index=False)
     print(f"[SAVE] {csv_out}")
 
-    # Cut video
     cut_out = os.path.join(out_dir, f'Cut_{ts}.mp4')
     _cut(vid, cut_out, s/src_fps, (e-s+1)/src_fps, cfg.get('faststart', True), out_fps)
     print(f"[SAVE] {cut_out}")
 
-    # Render Target sequentially
     tmp = os.path.join(out_dir, f'{ts}_tmp.mp4')
     writer = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*'mp4v'), out_fps or src_fps, (w,h))
     cap = cv2.VideoCapture(vid); cap.set(cv2.CAP_PROP_POS_FRAMES, s)
     frame_idx = s
     print(f"[RENDER] Target video with annotations")
+    idxs = list(range(0, len(traj), stride)) if out_fps else list(range(len(traj)))
+    traj_s = traj.iloc[idxs].reset_index(drop=True)
     for r in tqdm(traj_s.itertuples(), total=len(traj_s), desc="Rendering", unit="frame"):
         ret, frame = cap.read()
         if not ret: break
@@ -197,7 +197,6 @@ def _process(name, dirs, cfg):
     _remux(tmp, target_out, cfg.get('faststart', True))
     print(f"[SAVE] {target_out}\n")
 
-# ---- Entry ----
 if __name__ == '__main__':
     here = os.path.dirname(__file__)
     cfg = yaml.safe_load(open(os.path.join(here, '..', 'config.yaml')))['step2_trace']
