@@ -7,17 +7,15 @@ import math
 from tqdm import tqdm
 
 """
-step2_trace.py • v3.4 (fix CSV track assignment)
--------------------------------------------------------------
-- 修正：IMU CSV 使用完整插值轨迹 traj 而非 traj_s
-- 其他功能及日志保持不变
+step2_trace.py • v3.5 (csv frame-sync with target_fps)
+-----------------------------------------
+- CSV Track 输出根据 target_fps 下采样，行数与输出视频帧一一对应
+- 其他功能与日志保持不变
 """
 
 # ---- FFmpeg Helpers ----
-
 def _run(cmd):
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-
 
 def _remux(src, dst, faststart):
     print(f"[LOG] Muxing {src} -> {dst} (faststart={faststart})")
@@ -31,7 +29,7 @@ def _remux(src, dst, faststart):
     _run(cmd)
     os.remove(src)
 
-
+# 剪切并可选重编码 fps
 def _cut(src, dst, start_s, dur_s, faststart, out_fps=None):
     print(f"[LOG] Cutting {src}: start={start_s:.3f}s, duration={dur_s:.3f}s, fps_override={out_fps}, faststart={faststart}")
     tmp = dst.replace('.mp4', '_tmp.mp4')
@@ -57,8 +55,7 @@ def _cut(src, dst, start_s, dur_s, faststart, out_fps=None):
     _run(cmd)
     _remux(tmp, dst, faststart)
 
-# ---- Tracking ----
-
+# ---- 跟踪算法 ----
 def _pick_initial(df, idx, ref, cols, r0, growth):
     rx, ry = ref
     print(f"[LOG] Picking initial at row {idx}, ref=({rx},{ry}), r0={r0}, growth={growth}")
@@ -75,7 +72,7 @@ def _pick_initial(df, idx, ref, cols, r0, growth):
                 candidates.sort(reverse=True)
                 a, _, x, y = candidates[0]
                 print(f"[LOG] Initial found at (x={x}, y={y}, area={a}) with radius {radius}")
-                return (x, y, a)
+                return x, y, a
             radius += growth
     areas = [(df.at[idx, ac] if not pd.isna(df.at[idx, ac]) else 0) for _,_,ac in cols]
     k = int(pd.Series(areas).idxmax())
@@ -114,89 +111,18 @@ def _track(df, s, e, r0, growth, ref):
     df_out['area'] = pd.to_numeric(df_out['area'], errors='coerce').ffill().round().astype('Int64')
     return df_out
 
-# ---- Utils ----
-
+# ---- CSV 首行有效 ----
 def _first_valid(df, start):
     for i in range(start, len(df)):
         if df.iloc[i].filter(like='x_').notna().any(): return i
     return start
 
-
+# ---- 时间戳提取 ----
 def _norm_ts(name):
     ts = name[:-4] if name.lower().endswith('.mp4') else name
     return ts[len('Camera_'):] if ts.startswith('Camera_') else ts
 
-# ---- Main Pipeline ----
-
-def _process(name, dirs, cfg):
-    print(f"\n[PROCESS] File: {name}")
-    ts = _norm_ts(name)
-    vid = os.path.join(dirs['video'], f'Camera_{ts}.mp4')
-    imu = os.path.join(dirs['video'], f'Msg_{ts}.csv')
-    pts = os.path.join(dirs['points'], f'Trace_{ts}.csv')
-
-    df_pts = pd.read_csv(pts)
-    df_imu_full = pd.read_csv(imu)
-
-    cap0 = cv2.VideoCapture(vid)
-    src_fps = cap0.get(cv2.CAP_PROP_FPS)
-    w = int(cap0.get(3)); h = int(cap0.get(4))
-    total = int(cap0.get(7))
-    cap0.release()
-    print(f"[INFO] source fps={src_fps:.2f}, resolution={w}x{h}, total_frames={total}")
-
-    target_fps = cfg.get('target_fps', 0)
-    out_fps = target_fps if 0 < target_fps < src_fps else None
-    stride = math.floor(src_fps / out_fps) if out_fps else 1
-    print(f"[INFO] out_fps={out_fps}, stride={stride}")
-
-    s0 = max(0, cfg.get('start_frame', 0) - 1)
-    s = _first_valid(df_pts, s0)
-    e = total - 1 if cfg.get('end_frame', 0) <= 0 else min(total - 1, cfg['end_frame'] - 1)
-    print(f"[INFO] using frames {s}->{e}")
-
-    ref = (cfg.get('ref_x', 0), cfg.get('ref_y', 0))
-    traj = _track(df_pts, s, e, cfg['init_radius'], cfg['radius_growth'], ref)
-
-    # CSV 裁剪 + 完整插值轨迹写入
-    df_imu_cut = df_imu_full.iloc[s:e+1].reset_index(drop=True)
-    for col in ['track_x', 'track_y', 'track_area']:
-        if col not in df_imu_cut.columns:
-            df_imu_cut[col] = pd.NA
-    df_imu_cut[['track_x','track_y','track_area']] = traj.values
-    out_dir = dirs['out']; os.makedirs(out_dir, exist_ok=True)
-    csv_out = os.path.join(out_dir, f'Msg_{ts}_Track.csv')
-    df_imu_cut.to_csv(csv_out, index=False)
-    print(f"[SAVE] {csv_out}")
-
-    cut_out = os.path.join(out_dir, f'Cut_{ts}.mp4')
-    _cut(vid, cut_out, s/src_fps, (e-s+1)/src_fps, cfg.get('faststart', True), out_fps)
-    print(f"[SAVE] {cut_out}")
-
-    tmp = os.path.join(out_dir, f'{ts}_tmp.mp4')
-    writer = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*'mp4v'), out_fps or src_fps, (w,h))
-    cap = cv2.VideoCapture(vid); cap.set(cv2.CAP_PROP_POS_FRAMES, s)
-    frame_idx = s
-    print(f"[RENDER] Target video with annotations")
-    idxs = list(range(0, len(traj), stride)) if out_fps else list(range(len(traj)))
-    traj_s = traj.iloc[idxs].reset_index(drop=True)
-    for r in tqdm(traj_s.itertuples(), total=len(traj_s), desc="Rendering", unit="frame"):
-        ret, frame = cap.read()
-        if not ret: break
-        x, y, a = r.x, r.y, r.area
-        if not pd.isna(x):
-            x, y, a = int(x), int(y), int(a)
-            cv2.circle(frame, (x,y), 6, (0,0,255), -1)
-            cv2.putText(frame, f"{x},{y},{a}", (x+10,y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
-        cv2.putText(frame, str(frame_idx), (w-60, h-20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-        writer.write(frame)
-        for _ in range(stride-1): cap.grab()
-        frame_idx += stride
-    cap.release(); writer.release()
-    target_out = os.path.join(out_dir, f'Target_{ts}.mp4')
-    _remux(tmp, target_out, cfg.get('faststart', True))
-    print(f"[SAVE] {target_out}\n")
-
+# ---- 主流程 ----
 if __name__ == '__main__':
     here = os.path.dirname(__file__)
     cfg = yaml.safe_load(open(os.path.join(here, '..', 'config.yaml')))['step2_trace']
@@ -205,8 +131,76 @@ if __name__ == '__main__':
         'points':os.path.abspath(os.path.join(here, '..', cfg.get('input_csv_dir','local_file/step1_file'))),
         'out':   os.path.abspath(os.path.join(here, '..', cfg.get('output_dir','local_file/step2_file')))
     }
+    os.makedirs(dirs['out'], exist_ok=True)
     sel = cfg.get('file_name', 'ALL')
     all_mp4 = [f for f in os.listdir(dirs['video']) if f.lower().endswith('.mp4')]
     targets = all_mp4 if sel=='ALL' else ([sel] if isinstance(sel,str) else sel)
     for v in targets:
-        _process(v, dirs, cfg)
+        print(f"\n[PROCESS] File: {v}")
+        ts = _norm_ts(v)
+        vid = os.path.join(dirs['video'], v)
+        imu = os.path.join(dirs['video'], f'Msg_{ts}.csv')
+        pts = os.path.join(dirs['points'], f'Trace_{ts}.csv')
+
+        df_pts = pd.read_csv(pts)
+        df_imu_full = pd.read_csv(imu)
+
+        cap0 = cv2.VideoCapture(vid)
+        src_fps = cap0.get(cv2.CAP_PROP_FPS)
+        w = int(cap0.get(3)); h = int(cap0.get(4))
+        total = int(cap0.get(7)); cap0.release()
+        print(f"[INFO] source fps={src_fps:.2f}, resolution={w}x{h}, total_frames={total}")
+
+        target_fps = cfg.get('target_fps', 0)
+        out_fps = target_fps if 0 < target_fps < src_fps else None
+        stride = math.floor(src_fps / out_fps) if out_fps else 1
+        print(f"[INFO] out_fps={out_fps}, stride={stride}")
+
+        s0 = max(0, cfg.get('start_frame', 0) - 1)
+        s = _first_valid(df_pts, s0)
+        e = total - 1 if cfg.get('end_frame', 0) <= 0 else min(total - 1, cfg['end_frame'] - 1)
+        print(f"[INFO] using frames {s}->{e}")
+
+        ref = (cfg.get('ref_x', 0), cfg.get('ref_y', 0))
+        traj = _track(df_pts, s, e, cfg['init_radius'], cfg['radius_growth'], ref)
+
+        # 写 CSV: 下采样对应输出帧
+        idxs = list(range(0, len(traj), stride)) if out_fps else list(range(len(traj)))
+        df_csv = df_imu_full.iloc[s:e+1].reset_index(drop=True)
+        # 保证字段
+        for col in ['track_x','track_y','track_area']:
+            df_csv[col] = pd.NA
+        df_down = traj.iloc[idxs].reset_index(drop=True)
+        df_csv = df_csv.loc[idxs].reset_index(drop=True)
+        df_csv[['track_x','track_y','track_area']] = df_down.values
+        out_csv = os.path.join(dirs['out'], f'Msg_{ts}_Track.csv')
+        df_csv.to_csv(out_csv, index=False)
+        print(f"[SAVE] {out_csv}")
+
+        # Cut视频
+        cut_out = os.path.join(dirs['out'], f'Cut_{ts}.mp4')
+        _cut(vid, cut_out, s/src_fps, (e-s+1)/src_fps, cfg.get('faststart', True), out_fps)
+        print(f"[SAVE] {cut_out}")
+
+        # Target标注
+        tmp = os.path.join(dirs['out'], f'{ts}_tmp.mp4')
+        writer = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*'mp4v'), out_fps or src_fps, (w,h))
+        cap = cv2.VideoCapture(vid); cap.set(cv2.CAP_PROP_POS_FRAMES, s)
+        frame_idx = s
+        print(f"[RENDER] Target video with annotations")
+        for r in tqdm(df_down.itertuples(), total=len(df_down), desc="Rendering", unit="frame"):
+            ret, frame = cap.read()
+            if not ret: break
+            x, y, a = r.x, r.y, r.area
+            if not pd.isna(x):
+                x, y, a = int(x), int(y), int(a)
+                cv2.circle(frame, (x,y), 6, (0,0,255), -1)
+                cv2.putText(frame, f"{x},{y},{a}", (x+10,y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+            cv2.putText(frame, str(frame_idx), (w-60, h-20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+            writer.write(frame)
+            for _ in range(stride-1): cap.grab()
+            frame_idx += stride
+        cap.release(); writer.release()
+        target_out = os.path.join(dirs['out'], f'Target_{ts}.mp4')
+        _remux(tmp, target_out, cfg.get('faststart', True))
+        print(f"[SAVE] {target_out}\n")

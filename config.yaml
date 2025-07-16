@@ -23,3 +23,21 @@ step2_trace:
   target_fps:       10                        # fps > 0 且 < 源 fps 时生效
   faststart:        true
   reencode:         false
+
+step3_observed_angle:
+  raw_csv_dir:      "local_file/raw_file"
+  input_video_dir:  "local_file/step2_file"
+  input_csv_dir:    "local_file/step2_file"
+  output_dir:       "local_file/step3_file"
+  file_name:        "ALL"                     # “ALL” 或者指定单个待处理文件
+  arrow_scale:      5                         # 箭头像素长度
+  faststart:        true                      # 输出 mp4 添加 fast-start
+  field_map:                                  # csv中对应的列标签名
+    px:        track_x
+    py:        track_y
+    roll:      angle_y
+    pitch:     angle_x
+    yaw:       tilt
+    cam_pitch: g1
+  fov_h:           125.0                      # 相机水平视场角
+  fov_v:           69.0                       # 相机垂直视场角
