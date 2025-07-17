@@ -41,3 +41,16 @@ step3_observed_angle:
     cam_pitch: g1
   fov_h:           125.0                      # 相机水平视场角
   fov_v:           69.0                       # 相机垂直视场角
+
+step4_yolo_train:
+  dataset_dir: "local_file/step3_file/drone"
+  model:       "local_file/step4_file/models/yolo12m-pose.yaml"
+  epochs:      50
+  imgsz:       640
+  batch:       16
+  device:      "cuda:0"
+  freeze:      10
+  project:     "local_file/step4_file"
+  name:        "drone_finetune"
+  resume:      false
+

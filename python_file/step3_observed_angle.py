@@ -78,8 +78,8 @@ def process_one(ts: str, cfg: dict):
         return
 
     # 目录：yolo/{images,labels}
-    yolo_img_dir = os.path.join(cfg['output_dir'], 'yolo', 'images')
-    yolo_lbl_dir = os.path.join(cfg['output_dir'], 'yolo', 'labels')
+    yolo_img_dir = os.path.join(cfg['output_dir'], 'drone', 'images')
+    yolo_lbl_dir = os.path.join(cfg['output_dir'], 'drone', 'labels')
     os.makedirs(yolo_img_dir, exist_ok=True)
     os.makedirs(yolo_lbl_dir, exist_ok=True)
 
@@ -153,7 +153,11 @@ def process_one(ts: str, cfg: dict):
         yc_n = py / h
         bw_n = bw / w
         bh_n = bh / h
-        label_line = f"1123 {xc_n:.6f} {yc_n:.6f} {bw_n:.6f} {bh_n:.6f} {front_angle:.4f} {side_angle:.4f}\n"
+        kp_x = (front_angle + 90) / 180
+        kp_y = (side_angle  + 90) / 180
+        kp_v = 2
+
+        label_line = f"0 {xc_n:.6f} {yc_n:.6f} {bw_n:.6f} {bh_n:.6f} {kp_x:.6f} {kp_y:.6f} {kp_v}\n"
         img_name = f"{ts}_{idx:06d}.jpg"
         lbl_name = img_name.replace('.jpg', '.txt')
         cv2.imwrite(os.path.join(yolo_img_dir, img_name), frame_raw)
