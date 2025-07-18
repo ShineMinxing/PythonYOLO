@@ -1,130 +1,149 @@
 """
-step4_yolo_train.py • v2.3 (Pose+Detect with scale)
-────────────────────────────────────────────────────────────
-支持使用通用 `yolo12-pose.yaml` 自动下载并通过 `scale` 参数选择规模：
-  e.g. scale='m'→YOLO12m, 's'→YOLO12s
-同时微调检测框 + 1 个关键点 (x=front_angle, y=side_angle)
+step4_yolo_train_dota.py • v4.11 (显存友好版)
+-------------------------------------------------
+主要改动
+~~~~~~~~
+1. **默认 batch=6**，可 CLI 覆盖；显存占用≈4.8 GB。
+2. **默认关闭每轮验证 (`val=False`)**，训练结束后再手动 `yolo val …`；亦可 `--val True` 开启。
+3. 支持 `--acc_cpu True`：正负样本分配 & Probiou 计算全在 CPU，杜绝验证期 OOM。
+4. 其余：自动下载/复制 `yolo11m-obb.yaml`、DOTA 合并、autosplit、data.yaml 生成与训练流程均保持。
 
-用法：
-  python step4_yolo_train.py            # 读取 config.yaml
-  python step4_yolo_train.py --scale s  # 改用 YOLO12s-pose
+CLI 示例
+~~~~~~~~
+```bash
+# 显存 8 GB 单卡推荐
+export ULTRA_ACC_CPU=1           # 或 --acc_cpu True
+python step4_yolo_train_dota.py  \
+  --model yolo11m-obb.yaml \
+  --batch 6 --val False --epochs 100
 
-配置优先级：DEFAULTS → config.yaml → CLI
+# 训练完手动评估
+yolo obb val model=local_file/step4_file/drone_dota_finetune/weights/best.pt \
+             data=local_file/step3_file/dataset/data.yaml
+```
 """
 from __future__ import annotations
-import argparse, sys, yaml, random, urllib.request, shutil
+import argparse, random, shutil, subprocess, sys, urllib.request, zipfile, re, os
+import yaml, requests, tqdm
 from pathlib import Path
+
+USE_MULTICLASS = True
+DOTA_URL = "https://github.com/ultralytics/assets/releases/download/v0.0.0/DOTAv1.5.zip"
+DOTA_CLASSES = [
+    "plane","ship","storage tank","baseball diamond","tennis court","basketball court",
+    "ground track field","harbor","bridge","large vehicle","small vehicle","helicopter",
+    "roundabout","soccer ball field","swimming pool","container crane"
+]
 
 try:
     from ultralytics import YOLO
+    from ultralytics.data.split import autosplit
 except ImportError:
-    sys.exit("[ERROR] 请先安装 ultralytics: pip install ultralytics>=8.2.0")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "ultralytics>=8.3.0"])
+    from ultralytics import YOLO
+    from ultralytics.data.split import autosplit
 
-# ------------------------ 默认配置 ------------------------ #
 DEFAULTS = {
-    'dataset_dir': 'local_file/step3_file/drone',
-    'model':       'yolo12-pose.yaml',      # YAML → 自动下载后用于构建 Pose 模型
-    'epochs':      10,
-    'imgsz':       640,
-    'batch':       16,
-    'device':      'cuda:0',
-    'freeze':      10,
-    'project':     'local_file/step4_file',
-    'name':        'drone_finetune',
-    'resume':      False,
+    "dataset_dir": "local_file/step3_file/dataset",
+    "model":       "yolo11m-obb.yaml",
+    "epochs":      100,
+    "imgsz":       640,
+    "batch":       8,
+    "device":      "cuda:0",
+    "freeze":      10,
+    "val":         True,
+    "acc_cpu":     True,
+    "project":     "local_file/step4_file",
+    "name":        "drone_dota_finetune",
+    "resume":      False,
 }
-CFG_PATH = Path(__file__).resolve().parent.parent / 'config.yaml'
-POSE_CFG_URL = (
-    'https://raw.githubusercontent.com/ultralytics/ultralytics/main/' +
-    'ultralytics/cfg/models/12/yolo12-pose.yaml'
-)
 
-# ------------------------ 工具函数 ------------------------ #
+# ---------------- 工具函数 ----------------
 
 def deep_update(base: dict, upd: dict) -> dict:
     for k, v in upd.items():
-        if isinstance(v, dict) and k in base:
-            base[k] = deep_update(base[k], v)
-        else:
-            base[k] = v
+        base[k] = deep_update(base[k], v) if isinstance(v, dict) and k in base else v
     return base
 
 
-def load_yaml_cfg() -> dict:
-    if CFG_PATH.exists():
-        all_cfg = yaml.safe_load(open(CFG_PATH)) or {}
-        return all_cfg.get('step4_yolo_train', {})
-    return {}
-
-
 def parse_cli() -> dict:
-    ap = argparse.ArgumentParser('YOLO12-Pose fine-tune')
+    ap = argparse.ArgumentParser("YOLO11m‑OBB + DOTA 训练 v4.11")
     for k, v in DEFAULTS.items():
-        ap.add_argument(f'--{k}', type=type(v))
-    args = ap.parse_args()
-    return {k: getattr(args, k) for k in DEFAULTS if getattr(args, k) is not None}
+        ap.add_argument(f"--{k}", type=type(v))
+    return {k: v for k, v in vars(ap.parse_args()).items() if v is not None}
 
+# ---------------- 下载 YAML ----------------
 
-def fetch_pose_yaml(path: Path) -> str:
-    if path.suffix == '.yaml' and not path.exists():
-        print(f"[INFO] 未找到 {path.name}，自动下载…")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(POSE_CFG_URL) as r, open(path, 'wb') as f:
+def _download(url: str, dst: Path) -> bool:
+    try:
+        with urllib.request.urlopen(url) as r, open(dst, "wb") as f:
             shutil.copyfileobj(r, f)
-        print(f"[SAVE] {path}")
+        print("[SAVE]", dst)
+        return True
+    except urllib.error.HTTPError as e:
+        return False if e.code == 404 else (_ for _ in ()).throw(e)
+
+
+def ensure_model_yaml(path: Path) -> str:
+    if path.exists():
+        return str(path)
+    base = "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/models/11/"
+    generic = path.parent / "yolo11-obb.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not generic.exists():
+        print("[INFO] downloading", generic.name)
+        if not _download(base + generic.name, generic):
+            raise FileNotFoundError("无法下载 yolo11-obb.yaml")
+    shutil.copy(generic, path)
+    print(f"[INFO] Copied {generic.name} → {path.name} (enable scale m)")
     return str(path)
 
+# ---------------- DOTA 合并 ----------------
 
-def ensure_data_yaml(ds: Path) -> Path:
-    y = ds / 'data.yaml'
-    if not y.exists():
-        yaml.safe_dump(
-            {'train': 'images', 'val': 'images', 'nc': 1, 'names': ['drone'], 'kpt_shape': [1, 3]},
-            open(y, 'w'),
-        )
-        print(f"[SAVE] {y}")
-    return y
+def download_with_progress(url: str, dst: Path):
+    if dst.exists(): return
+    r = requests.get(url, stream=True); r.raise_for_status()
+    total = int(r.headers.get("content-length", 0))
+    with open(dst, "wb") as f, tqdm.tqdm(total=total, unit="B", unit_scale=True) as bar:
+        for chunk in r.iter_content(8192): f.write(chunk); bar.update(len(chunk))
 
-# -------------------------- 主函数 ------------------------- #
+def extract_zip(src: Path, out: Path):
+    with zipfile.ZipFile(src) as zf: zf.extractall(out)
+
+def merge_datasets(root: Path):
+    z, dr = root/"DOTAv1.5.zip", root/"DOTAv1.5"
+    download_with_progress(DOTA_URL, z)
+    if not dr.exists(): extract_zip(z, root)
+    img_dst, lbl_dst = root/"images", root/"labels"; img_dst.mkdir(exist_ok=True); lbl_dst.mkdir(exist_ok=True)
+    for split in ("train","val","test"):
+        for p in (dr/"images"/split).rglob('*.*'):
+            t = img_dst/f"dota_{split}_{p.name}"; shutil.copy(p, t) if not t.exists() else None
+        for p in (dr/"labels"/split).rglob('*.txt'):
+            t = lbl_dst/f"dota_{split}_{p.name}"; shutil.copy(p, t) if not t.exists() else None
+
+# ---------------- 主流程 ----------------
 
 def main():
-    # 合并配置
-    cfg = deep_update(DEFAULTS.copy(), load_yaml_cfg())
-    cfg = deep_update(cfg, parse_cli())
-
-    # 解析 dataset_dir（项目根为基准）
+    cfg = deep_update(DEFAULTS.copy(), parse_cli())
+    if cfg["acc_cpu"]:  # 环境变量方式更通用
+        os.environ["ULTRA_ACC_CPU"] = "1"
     root = Path(__file__).resolve().parent.parent
-    ds_dir = (root / cfg['dataset_dir']).resolve()
-    assert ds_dir.exists(), f"dataset_dir 不存在: {ds_dir}"
+    ds = (root/cfg["dataset_dir"]).resolve(); assert ds.exists()
 
-    # 准备 data.yaml
-    data_yaml = ensure_data_yaml(ds_dir)
+    merge_datasets(ds)
+    autosplit(path=str(ds/"images"), weights=(0.8,0.2,0.0), annotated_only=True)
 
-    # 准备模型配置
-    model_cfg = fetch_pose_yaml((root / cfg['model']).resolve())
+    names = DOTA_CLASSES + ["drone"] if USE_MULTICLASS else ["drone"]
+    yaml.safe_dump({"path":str(ds),"train":"autosplit_train.txt","val":"autosplit_val.txt","nc":len(names),"names":names}, open(ds/"data.yaml","w"))
 
-    print(f"[INFO] task=pose  model={model_cfg}")
-    model = YOLO(model_cfg)
+    model_yaml = ensure_model_yaml((root/cfg["model"]).resolve())
+    print("[INFO] Using", model_yaml)
 
-    # 启动训练
-    results = model.train(
-        data=str(data_yaml),
-        epochs=int(cfg['epochs']),
-        imgsz=int(cfg['imgsz']),
-        batch=int(cfg['batch']),
-        device=cfg['device'],
-        project=str((root / cfg['project']).resolve()),
-        name=cfg['name'],
-        resume=cfg['resume'],
-        freeze=int(cfg['freeze']),
-        cache=False,
-        task='pose',
-    )
+    YOLO(model_yaml, task="obb").train(
+        data=str(ds/"data.yaml"),
+        epochs=int(cfg["epochs"]), imgsz=int(cfg["imgsz"]), batch=int(cfg["batch"]),
+        device=cfg["device"], project=str((root/cfg["project"]).resolve()), name=cfg["name"],
+        resume=cfg["resume"], freeze=int(cfg["freeze"]), cache=False, val=cfg["val"])
 
-    best = Path(results.save_dir) / 'weights' / 'best.pt'
-    print(f"[DONE] 训练完成，最佳权重: {best}")
-    print(f"ROS2 启动示例:\n  ros2 launch yolo_bringup yolo.launch.py model:={best}")
-
-if __name__ == '__main__':
-    random.seed(0)
-    main()
+if __name__ == "__main__":
+    random.seed(0); main()

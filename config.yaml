@@ -30,7 +30,10 @@ step3_observed_angle:
   input_csv_dir:    "local_file/step2_file"
   output_dir:       "local_file/step3_file"
   file_name:        "ALL"                     # “ALL” 或者指定单个待处理文件
-  arrow_scale:      5                         # 箭头像素长度
+  arrow_scale:      100                       # 箭头像素长度
+  min_track_area:   666                       # 小于此像素面积的 track 不写入 JPG/TXT
+  max_track_area:   999999                    # 大于此面积的 track 不写入 JPG/TXT
+
   faststart:        true                      # 输出 mp4 添加 fast-start
   field_map:                                  # csv中对应的列标签名
     px:        track_x
@@ -43,14 +46,11 @@ step3_observed_angle:
   fov_v:           69.0                       # 相机垂直视场角
 
 step4_yolo_train:
-  dataset_dir: "local_file/step3_file/drone"
-  model:       "local_file/step4_file/models/yolo12m-pose.yaml"
-  epochs:      50
-  imgsz:       640
-  batch:       16
-  device:      "cuda:0"
+  dataset_dir: "local_file/step3_file/dataset"
+  model:       "local_file/step4_file/models/yolo11s-obb.yaml"
+  epochs:      100
+  batch:       8
   freeze:      10
   project:     "local_file/step4_file"
   name:        "drone_finetune"
-  resume:      false
-
+ 
