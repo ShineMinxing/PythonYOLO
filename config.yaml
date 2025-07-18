@@ -47,10 +47,10 @@ step3_observed_angle:
 
 step4_yolo_train:
   dataset_dir: "local_file/step3_file/dataset"
-  model:       "local_file/step4_file/models/yolo11s-obb.yaml"
+  model:       "local_file/step4_file/models/yolo11m-obb.yaml"
   epochs:      100
-  batch:       8
-  freeze:      10
+  batch:       32
+  freeze:      20
   project:     "local_file/step4_file"
   name:        "drone_finetune"
  
