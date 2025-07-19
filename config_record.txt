@@ -102,3 +102,169 @@ step2_trace:
   target_fps:       10                        # fps > 0 且 < 源 fps 时生效
   faststart:        true
   reencode:         false
+
+step2_trace: # IMU X Y反向了，需要step3额外处理！！！！！！！！！ 
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_104640.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      45                         # 0 = 从头
+  end_frame:        1800                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            760                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            140                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_121637.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      230                         # 0 = 从头
+  end_frame:        1950                         # 0 = 到末尾
+  init_radius:      60                        # 初始搜索半径 (px)
+  ref_x:            300                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            240                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_123749.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      180                         # 0 = 从头
+  end_frame:        3000                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            880                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            300                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_125720.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      60                         # 0 = 从头
+  end_frame:        0                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            620                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            340                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_130035.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      180                         # 0 = 从头
+  end_frame:        2950                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            1080                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            280                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_130947.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      31                         # 0 = 从头
+  end_frame:        3000                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            470                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            600                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_131221.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      30                         # 0 = 从头
+  end_frame:        0                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            660                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            520                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_133638.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      180                         # 0 = 从头
+  end_frame:        3100                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            480                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            400                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_133937.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      30                         # 0 = 从头
+  end_frame:        3900                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            670                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            440                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_135939.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      45                         # 0 = 从头
+  end_frame:        2000                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            650                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            390                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+
+step2_trace:
+  input_video_dir:  "local_file/raw_file"
+  input_csv_dir:    "local_file/step1_file"
+  output_dir:       "local_file/step2_file"
+  file_name:        "Camera_20250719_140344.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      1650                         # 0 = 从头
+  end_frame:        2700                         # 0 = 到末尾
+  init_radius:      60                        # 初始搜索半径 (px)
+  ref_x:            520                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            600                       # 目标初始位置， 0 = 最大运动目标
+  radius_growth:    1                         # 每丢 1 帧半径增量
+  target_fps:       10                         # fps > 0 且 < 源 fps 时生效
+  faststart:        true
+  reencode:         false
+

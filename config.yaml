@@ -13,14 +13,14 @@ step2_trace:
   input_video_dir:  "local_file/raw_file"
   input_csv_dir:    "local_file/step1_file"
   output_dir:       "local_file/step2_file"
-  file_name:        "Camera_20250714_175500.mp4"                     # “ALL” 或者指定单个待处理文件
-  start_frame:      68                         # 0 = 从头
-  end_frame:        1500                         # 0 = 到末尾
-  init_radius:      80                        # 初始搜索半径 (px)
-  ref_x:            690                       # 目标初始位置， 0 = 最大运动目标
-  ref_y:            290                       # 目标初始位置， 0 = 最大运动目标
+  file_name:        "Camera_20250719_140344.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      1650                         # 0 = 从头
+  end_frame:        2700                         # 0 = 到末尾
+  init_radius:      60                        # 初始搜索半径 (px)
+  ref_x:            520                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            600                       # 目标初始位置， 0 = 最大运动目标
   radius_growth:    1                         # 每丢 1 帧半径增量
-  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
+  target_fps:       10                         # fps > 0 且 < 源 fps 时生效
   faststart:        true
   reencode:         false
 
@@ -29,9 +29,9 @@ step3_observed_angle:
   input_video_dir:  "local_file/step2_file"
   input_csv_dir:    "local_file/step2_file"
   output_dir:       "local_file/step3_file"
-  file_name:        "ALL"                     # “ALL” 或者指定单个待处理文件
+  file_name:        "Camera_20250719_104640.mp4"                     # “ALL” 或者指定单个待处理文件
   arrow_scale:      100                       # 箭头像素长度
-  min_track_area:   666                       # 小于此像素面积的 track 不写入 JPG/TXT
+  min_track_area:   400                       # 小于此像素面积的 track 不写入 JPG/TXT
   max_track_area:   999999                    # 大于此面积的 track 不写入 JPG/TXT
 
   faststart:        true                      # 输出 mp4 添加 fast-start
@@ -48,9 +48,9 @@ step3_observed_angle:
 step4_yolo_train:
   dataset_dir: "local_file/step3_file/dataset"
   model:       "local_file/step4_file/models/yolo11m-obb.yaml"
-  epochs:      100
-  batch:       32
-  freeze:      20
+  epochs:      500
+  batch:       24
+  freeze:      10
   project:     "local_file/step4_file"
   name:        "drone_finetune"
  
