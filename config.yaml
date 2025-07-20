@@ -9,18 +9,18 @@ step1_moving_points:
   max_area_ratio:  0.01                       # 忽略面积占帧面积比例超过此阈值（过滤云层等大块）
   speed_thresh:    20                         # 灰度差分阈值，仅保留运动速度大于此值的像素
 
-step2_trace:
+step2_trace: # IMU X Y反向了，需要step3额外处理！！！！！！！！！ 
   input_video_dir:  "local_file/raw_file"
   input_csv_dir:    "local_file/step1_file"
   output_dir:       "local_file/step2_file"
-  file_name:        "Camera_20250719_140344.mp4"                     # “ALL” 或者指定单个待处理文件
-  start_frame:      1650                         # 0 = 从头
-  end_frame:        2700                         # 0 = 到末尾
-  init_radius:      60                        # 初始搜索半径 (px)
-  ref_x:            520                       # 目标初始位置， 0 = 最大运动目标
-  ref_y:            600                       # 目标初始位置， 0 = 最大运动目标
+  file_name:        "Camera_20250719_104640.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      60                         # 0 = 从头
+  end_frame:        1800                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            760                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            140                       # 目标初始位置， 0 = 最大运动目标
   radius_growth:    1                         # 每丢 1 帧半径增量
-  target_fps:       10                         # fps > 0 且 < 源 fps 时生效
+  target_fps:       10                        # fps > 0 且 < 源 fps 时生效
   faststart:        true
   reencode:         false
 
@@ -47,10 +47,13 @@ step3_observed_angle:
 
 step4_yolo_train:
   dataset_dir: "local_file/step3_file/dataset"
-  model:       "local_file/step4_file/models/yolo11m-obb.yaml"
-  epochs:      500
-  batch:       24
-  freeze:      10
+  model:       "local_file/step4_file/drone_finetune_202507201831/weights/last.pt"
+  epochs:      2000
+  imgsz:       640
+  batch:       16
+  freeze:      20
   project:     "local_file/step4_file"
   name:        "drone_finetune"
+  resume":      true
+
  

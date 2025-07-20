@@ -164,7 +164,7 @@ def process_one(ts: str, cfg: dict):
             pts_n = pts / np.array([w, h])
             flat = pts_n.reshape(-1) 
             
-            label_line = "0 " + " ".join(f"{v:.6f}" for v in flat) + "\n"
+            label_line = "16 " + " ".join(f"{v:.6f}" for v in flat) + "\n"
 
             img_name = f"{ts}_{idx:06d}.jpg"
             lbl_name = img_name.replace('.jpg', '.txt')

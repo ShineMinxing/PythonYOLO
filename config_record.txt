@@ -108,7 +108,7 @@ step2_trace: # IMU X Y反向了，需要step3额外处理！！！！！！！�
   input_csv_dir:    "local_file/step1_file"
   output_dir:       "local_file/step2_file"
   file_name:        "Camera_20250719_104640.mp4"                     # “ALL” 或者指定单个待处理文件
-  start_frame:      45                         # 0 = 从头
+  start_frame:      60                         # 0 = 从头
   end_frame:        1800                         # 0 = 到末尾
   init_radius:      80                        # 初始搜索半径 (px)
   ref_x:            760                       # 目标初始位置， 0 = 最大运动目标
@@ -118,16 +118,16 @@ step2_trace: # IMU X Y反向了，需要step3额外处理！！！！！！！�
   faststart:        true
   reencode:         false
 
-step2_trace:
+step2_trace: # IMU X Y反向了，需要step3额外处理！！！！！！！！！ 
   input_video_dir:  "local_file/raw_file"
   input_csv_dir:    "local_file/step1_file"
   output_dir:       "local_file/step2_file"
-  file_name:        "Camera_20250719_121637.mp4"                     # “ALL” 或者指定单个待处理文件
-  start_frame:      230                         # 0 = 从头
-  end_frame:        1950                         # 0 = 到末尾
-  init_radius:      60                        # 初始搜索半径 (px)
-  ref_x:            300                       # 目标初始位置， 0 = 最大运动目标
-  ref_y:            240                       # 目标初始位置， 0 = 最大运动目标
+  file_name:        "Camera_20250719_104640.mp4"                     # “ALL” 或者指定单个待处理文件
+  start_frame:      60                         # 0 = 从头
+  end_frame:        1800                         # 0 = 到末尾
+  init_radius:      80                        # 初始搜索半径 (px)
+  ref_x:            760                       # 目标初始位置， 0 = 最大运动目标
+  ref_y:            140                       # 目标初始位置， 0 = 最大运动目标
   radius_growth:    1                         # 每丢 1 帧半径增量
   target_fps:       10                        # fps > 0 且 < 源 fps 时生效
   faststart:        true
