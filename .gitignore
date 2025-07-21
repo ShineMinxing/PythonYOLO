@@ -7,5 +7,5 @@ local_file/step4_file/*
 local_file/step5_file/*
 
 !local_file/*/.gitkeep
-!local_file/step4_file/models/
-!local_file/step4_file/models/**
+!local_file/step4_file/models/best.pt
+!local_file/step4_file/models/last.pt
