@@ -54,6 +54,6 @@ step4_yolo_train:
   freeze:      20
   project:     "local_file/step4_file"
   name:        "drone_finetune"
-  resume":      true
+  resume":      false
 
  

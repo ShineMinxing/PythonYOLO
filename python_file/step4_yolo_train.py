@@ -95,7 +95,7 @@ def ensure_pt(ver: str, scale: str) -> Path:
 def ensure_autosplit(ds: Path):
     if (ds/"autosplit_train.txt").exists() and (ds/"autosplit_val.txt").exists(): return
     print("[INFO] autosplitting train/val …")
-    autosplit(path=str(ds/"images"), weights=(0.2,0.15,0.65), annotated_only=True)
+    autosplit(path=str(ds/"images"), weights=(0.2,0.1,0.7), annotated_only=True)
 
 
 def ensure_data_yaml(ds: Path) -> Path:
