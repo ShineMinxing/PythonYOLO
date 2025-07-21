@@ -47,7 +47,7 @@ step3_observed_angle:
 
 step4_yolo_train:
   dataset_dir: "local_file/step3_file/dataset"
-  model:       "local_file/step4_file/drone_finetune_202507201831/weights/last.pt"
+  model:       "local_file/step4_file/models/yolo11l-obb.yaml"
   epochs:      2000
   imgsz:       640
   batch:       16
